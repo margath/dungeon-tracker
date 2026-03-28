@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dungeon Turn Activity Tracker</title>
+    <title>Dungeon Turn Tracker</title>
     <style>
         body {
             font-family: system-ui, -apple-system, sans-serif;
@@ -134,10 +134,14 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
+            max-height: 600px;
+            overflow-y: auto;
         }
 
         .panel.full-width {
             grid-column: 1 / -1;
+            max-height: none;
+            overflow: visible;
         }
 
         .panel h2 {
@@ -149,6 +153,10 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: sticky;
+            top: -20px;
+            background: #1e1e1e;
+            z-index: 10;
         }
 
         .turn-display {
@@ -172,7 +180,7 @@
             border: 1px solid #333;
         }
         
-        input[type="text"], input[type="number"] {
+        input[type="text"], input[type="number"], select {
             padding: 8px 12px;
             border-radius: 4px;
             border: 1px solid #555;
@@ -183,24 +191,20 @@
         }
         
         .item-row input[type="text"] { flex-grow: 1; }
-        .item-row input.short-input { width: 80px; text-align: center; }
+        .item-row input.short-input { width: 70px; text-align: center; }
+        .item-row select { width: 100px; cursor: pointer; padding: 8px; }
 
         .tracker-expired {
             border-color: #e74c3c !important;
             background: #4a1915 !important;
         }
-        .tracker-expired input {
+        .tracker-expired input, .tracker-expired select {
             color: #ff9999;
+            border-color: #e74c3c;
         }
 
-        /* Action Log */
+        /* Action Log & Rules Reference */
         .log-container {
-            max-height: 400px;
-            overflow-y: auto;
-            background: #151515;
-            padding: 15px;
-            border-radius: 6px;
-            border: 1px solid #333;
             font-size: 13px;
             color: #bbb;
         }
@@ -213,6 +217,39 @@
         .log-entry h4 { margin: 0 0 8px 0; color: #3498db; }
         .log-entry ul { margin: 0; padding-left: 20px; }
         .log-entry li { margin-bottom: 4px; }
+
+        details {
+            background: #252525;
+            border: 1px solid #444;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        summary {
+            padding: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #3498db;
+            list-style: none; /* remove default arrow */
+            display: flex;
+            align-items: center;
+        }
+        summary::before {
+            content: "▶";
+            font-size: 10px;
+            margin-right: 8px;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        details[open] summary::before {
+            transform: rotate(90deg);
+        }
+        .rules-content {
+            padding: 0 15px 15px 15px;
+            font-size: 13px;
+            color: #ccc;
+            line-height: 1.4;
+        }
+        .rules-content ul { padding-left: 20px; margin-top: 5px; }
 
         /* Generic Buttons */
         button {
@@ -282,26 +319,26 @@
         @media print {
             @page { margin: 0.5in; size: letter portrait; }
             body { background: white; color: black; height: auto; }
-            .top-header, .credits-footer, button { display: none !important; }
+            .top-header, .credits-footer, button, .no-print { display: none !important; }
             .content-wrapper { margin-top: 0; display: block; height: auto; overflow: visible; }
             .main { padding: 0; overflow: visible; display: block; max-width: 100%; gap: 10px;}
             
             .dashboard-grid { display: block; }
             .panel { 
                 background: white; border: 1px solid #ccc; box-shadow: none; 
-                margin-bottom: 20px; page-break-inside: avoid;
+                margin-bottom: 20px; page-break-inside: avoid; max-height: none;
             }
-            .panel h2 { color: black; border-bottom: 2px solid #000; }
+            .panel h2 { color: black; border-bottom: 2px solid #000; position: static; }
             
             .turn-display { background: white; border: 2px solid #000; }
             .turn-display h3 { color: black; }
             .turn-display p { color: #333; }
             
             .item-row { background: white; border: 1px solid #ccc; padding: 5px; }
-            input[type="text"], input[type="number"] { 
-                background: white; color: black; border: none; font-weight: bold;
+            input[type="text"], input[type="number"], select { 
+                background: white; color: black; border: none; font-weight: bold; appearance: none;
             }
-            .log-container { background: white; color: black; border: 1px solid #ccc; max-height: none; overflow: visible; }
+            .log-container { background: white; color: black; }
             .log-entry h4 { color: black; }
             .log-entry { border-bottom: 1px solid #ccc; }
         }
@@ -309,15 +346,26 @@
 </head>
 <body>
 
+    <datalist id="activities-list">
+        <option value="Casting a Spell">
+        <option value="Helping Out">
+        <option value="Interacting">
+        <option value="Keeping Watch">
+        <option value="Loot Everything">
+        <option value="Move Quietly">
+        <option value="Search Area">
+        <option value="Take Your Time">
+    </datalist>
+
     <header class="top-header">
-         <div class="header-left">
-            <a href="https://tools.gameportal.win/" alt="Link to http://tools.gameportal.win/" title="https://tools.gameportal.win/" class="header-qr-link">
-                <img class="header-qr" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVRGLTgnPz4KPHN2ZyB4bWxuczpzdmc9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMzdtbSIgaGVpZ2h0PSIzN21tIiB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHN2ZzpyZWN0IHg9IjRtbSIgeT0iNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNW1tIiB5PSI0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI2bW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjdtbSIgeT0iNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iOG1tIiB5PSI0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI5bW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEwbW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEzbW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE0bW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE1bW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE2bW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE4bW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIybW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIzbW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI2bW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI3bW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI4bW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI5bW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMwbW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMxbW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMybW0iIHk9IjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjRtbSIgeT0iNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTBtbSIgeT0iNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTNtbSIgeT0iNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTVtbSIgeT0iNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTZtbSIgeT0iNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjBtbSIgeT0iNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjFtbSIgeT0iNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjZtbSIgeT0iNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzJtbSIgeT0iNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNG1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI2bW0iIHk9IjZtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjdtbSIgeT0iNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iOG1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMG1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxM21tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNG1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNW1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNm1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOG1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOW1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMW1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNG1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNm1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyOG1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyOW1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMG1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMm1tIiB5PSI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI0bW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjZtbSIgeT0iN21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iN21tIiB5PSI3bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI4bW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEwbW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEzbW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE1bW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE3bW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIwbW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIybW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIzbW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI0bW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI2bW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI4bW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI5bW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMwbW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMybW0iIHk9IjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjRtbSIgeT0iOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNm1tIiB5PSI4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI3bW0iIHk9IjhtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjhtbSIgeT0iOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTBtbSIgeT0iOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTVtbSIgeT0iOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjFtbSIgeT0iOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjJtbSIgeT0iOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjZtbSIgeT0iOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjhtbSIgeT0iOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjltbSIgeT0iOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzBtbSIgeT0iOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzJtbSIgeT0iOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNG1tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMG1tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMm1tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxM21tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNW1tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNm1tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOW1tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMG1tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMm1tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyM21tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNG1tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNm1tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMm1tIiB5PSI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI0bW0iIHk9IjEwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI1bW0iIHk9IjEwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI2bW0iIHk9IjEwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI3bW0iIHk9IjEwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI4bW0iIHk9IjEwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI5bW0iIHk9IjEwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMG1tIiB5PSIxMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTJtbSIgeT0iMTBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE0bW0iIHk9IjEwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNm1tIiB5PSIxMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMThtbSIgeT0iMTBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIwbW0iIHk9IjEwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMm1tIiB5PSIxMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjRtbSIgeT0iMTBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI2bW0iIHk9IjEwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyN21tIiB5PSIxMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjhtbSIgeT0iMTBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI5bW0iIHk9IjEwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMG1tIiB5PSIxMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzFtbSIgeT0iMTBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMybW0iIHk9IjEwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxM21tIiB5PSIxMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTRtbSIgeT0iMTFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE1bW0iIHk9IjExbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNm1tIiB5PSIxMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTdtbSIgeT0iMTFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE5bW0iIHk9IjExbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMG1tIiB5PSIxMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjFtbSIgeT0iMTFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIzbW0iIHk9IjExbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI0bW0iIHk9IjEybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI3bW0iIHk9IjEybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI5bW0iIHk9IjEybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMG1tIiB5PSIxMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTJtbSIgeT0iMTJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEzbW0iIHk9IjEybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNG1tIiB5PSIxMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTZtbSIgeT0iMTJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE4bW0iIHk9IjEybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMG1tIiB5PSIxMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjJtbSIgeT0iMTJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI0bW0iIHk9IjEybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNW1tIiB5PSIxMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjdtbSIgeT0iMTJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjRtbSIgeT0iMTNtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjVtbSIgeT0iMTNtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjExbW0iIHk9IjEzbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxM21tIiB5PSIxM21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTRtbSIgeT0iMTNtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE3bW0iIHk9IjEzbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOW1tIiB5PSIxM21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjBtbSIgeT0iMTNtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI0bW0iIHk9IjEzbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNm1tIiB5PSIxM21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjltbSIgeT0iMTNtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMybW0iIHk9IjEzbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI0bW0iIHk9IjE0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI2bW0iIHk9IjE0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI3bW0iIHk9IjE0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI4bW0iIHk9IjE0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI5bW0iIHk9IjE0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMG1tIiB5PSIxNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTFtbSIgeT0iMTRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE1bW0iIHk9IjE0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNm1tIiB5PSIxNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTdtbSIgeT0iMTRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE4bW0iIHk9IjE0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOW1tIiB5PSIxNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjFtbSIgeT0iMTRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIzbW0iIHk9IjE0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyOG1tIiB5PSIxNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjltbSIgeT0iMTRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMwbW0iIHk9IjE0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMW1tIiB5PSIxNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNW1tIiB5PSIxNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNm1tIiB5PSIxNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iOG1tIiB5PSIxNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iOW1tIiB5PSIxNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTJtbSIgeT0iMTVtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE0bW0iIHk9IjE1bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxN21tIiB5PSIxNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjBtbSIgeT0iMTVtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI2bW0iIHk9IjE1bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyN21tIiB5PSIxNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjhtbSIgeT0iMTVtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMwbW0iIHk9IjE1bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMW1tIiB5PSIxNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNG1tIiB5PSIxNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iOG1tIiB5PSIxNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTBtbSIgeT0iMTZtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEybW0iIHk9IjE2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxM21tIiB5PSIxNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTRtbSIgeT0iMTZtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE1bW0iIHk9IjE2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNm1tIiB5PSIxNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMThtbSIgeT0iMTZtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE5bW0iIHk9IjE2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMW1tIiB5PSIxNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjNtbSIgeT0iMTZtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI0bW0iIHk9IjE2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNm1tIiB5PSIxNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjltbSIgeT0iMTZtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMxbW0iIHk9IjE2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMm1tIiB5PSIxNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNG1tIiB5PSIxN21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNW1tIiB5PSIxN21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iN21tIiB5PSIxN21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTNtbSIgeT0iMTdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE1bW0iIHk9IjE3bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNm1tIiB5PSIxN21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTdtbSIgeT0iMTdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE4bW0iIHk9IjE3bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOW1tIiB5PSIxN21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjBtbSIgeT0iMTdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIxbW0iIHk9IjE3bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMm1tIiB5PSIxN21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjNtbSIgeT0iMTdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI0bW0iIHk9IjE3bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNW1tIiB5PSIxN21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNG1tIiB5PSIxOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iN21tIiB5PSIxOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iOW1tIiB5PSIxOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTBtbSIgeT0iMThtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEybW0iIHk9IjE4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxM21tIiB5PSIxOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTVtbSIgeT0iMThtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE3bW0iIHk9IjE4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOG1tIiB5PSIxOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjVtbSIgeT0iMThtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI5bW0iIHk9IjE4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMG1tIiB5PSIxOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzFtbSIgeT0iMThtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMybW0iIHk9IjE4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI0bW0iIHk9IjE5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI2bW0iIHk9IjE5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI3bW0iIHk9IjE5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI4bW0iIHk9IjE5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI5bW0iIHk9IjE5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMm1tIiB5PSIxOW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTNtbSIgeT0iMTltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE1bW0iIHk9IjE5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNm1tIiB5PSIxOW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTltbSIgeT0iMTltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIxbW0iIHk9IjE5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMm1tIiB5PSIxOW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjNtbSIgeT0iMTltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI1bW0iIHk9IjE5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNm1tIiB5PSIxOW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjhtbSIgeT0iMTltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI5bW0iIHk9IjE5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMW1tIiB5PSIxOW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNG1tIiB5PSIyMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNm1tIiB5PSIyMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iOW1tIiB5PSIyMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTBtbSIgeT0iMjBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjExbW0iIHk9IjIwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMm1tIiB5PSIyMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTNtbSIgeT0iMjBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE0bW0iIHk9IjIwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxN21tIiB5PSIyMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjFtbSIgeT0iMjBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIzbW0iIHk9IjIwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNW1tIiB5PSIyMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzFtbSIgeT0iMjBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjVtbSIgeT0iMjFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjZtbSIgeT0iMjFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjdtbSIgeT0iMjFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjExbW0iIHk9IjIxbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMm1tIiB5PSIyMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTNtbSIgeT0iMjFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE1bW0iIHk9IjIxbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNm1tIiB5PSIyMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTdtbSIgeT0iMjFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE4bW0iIHk9IjIxbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOW1tIiB5PSIyMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjBtbSIgeT0iMjFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIxbW0iIHk9IjIxbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNW1tIiB5PSIyMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjZtbSIgeT0iMjFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI3bW0iIHk9IjIxbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyOW1tIiB5PSIyMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzJtbSIgeT0iMjFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjRtbSIgeT0iMjJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjZtbSIgeT0iMjJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjltbSIgeT0iMjJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEwbW0iIHk9IjIybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMm1tIiB5PSIyMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTNtbSIgeT0iMjJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE0bW0iIHk9IjIybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNW1tIiB5PSIyMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMThtbSIgeT0iMjJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE5bW0iIHk9IjIybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMG1tIiB5PSIyMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjJtbSIgeT0iMjJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI1bW0iIHk9IjIybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNm1tIiB5PSIyMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjdtbSIgeT0iMjJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMxbW0iIHk9IjIybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMm1tIiB5PSIyMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iOW1tIiB5PSIyM21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTRtbSIgeT0iMjNtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE2bW0iIHk9IjIzbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOG1tIiB5PSIyM21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjFtbSIgeT0iMjNtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIybW0iIHk9IjIzbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNG1tIiB5PSIyM21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjhtbSIgeT0iMjNtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMxbW0iIHk9IjIzbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMm1tIiB5PSIyM21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNG1tIiB5PSIyNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNm1tIiB5PSIyNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iOG1tIiB5PSIyNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTBtbSIgeT0iMjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEybW0iIHk9IjI0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNG1tIiB5PSIyNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTZtbSIgeT0iMjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE5bW0iIHk9IjI0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNG1tIiB5PSIyNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjVtbSIgeT0iMjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI2bW0iIHk9IjI0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyN21tIiB5PSIyNG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjhtbSIgeT0iMjRtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMwbW0iIHk9IjI0bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMm1tIiB5PSIyNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTZtbSIgeT0iMjVtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE4bW0iIHk9IjI1bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOW1tIiB5PSIyNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjNtbSIgeT0iMjVtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI0bW0iIHk9IjI1bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyOG1tIiB5PSIyNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzBtbSIgeT0iMjVtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMxbW0iIHk9IjI1bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMm1tIiB5PSIyNW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNG1tIiB5PSIyNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNW1tIiB5PSIyNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNm1tIiB5PSIyNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iN21tIiB5PSIyNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iOG1tIiB5PSIyNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iOW1tIiB5PSIyNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTBtbSIgeT0iMjZtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEzbW0iIHk9IjI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNW1tIiB5PSIyNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjBtbSIgeT0iMjZtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIxbW0iIHk9IjI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNG1tIiB5PSIyNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjZtbSIgeT0iMjZtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI4bW0iIHk9IjI2bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMW1tIiB5PSIyNm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNG1tIiB5PSIyN21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTBtbSIgeT0iMjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEybW0iIHk9IjI3bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOG1tIiB5PSIyN21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTltbSIgeT0iMjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI0bW0iIHk9IjI3bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyOG1tIiB5PSIyN21tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjltbSIgeT0iMjdtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMwbW0iIHk9IjI3bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI0bW0iIHk9IjI4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI2bW0iIHk9IjI4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI3bW0iIHk9IjI4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSI4bW0iIHk9IjI4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMG1tIiB5PSIyOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTNtbSIgeT0iMjhtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE0bW0iIHk9IjI4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNW1tIiB5PSIyOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTZtbSIgeT0iMjhtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIwbW0iIHk9IjI4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMW1tIiB5PSIyOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjJtbSIgeT0iMjhtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI0bW0iIHk9IjI4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNW1tIiB5PSIyOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjZtbSIgeT0iMjhtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI3bW0iIHk9IjI4bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyOG1tIiB5PSIyOG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzFtbSIgeT0iMjhtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjRtbSIgeT0iMjltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjZtbSIgeT0iMjltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjdtbSIgeT0iMjltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjhtbSIgeT0iMjltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEwbW0iIHk9IjI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMm1tIiB5PSIyOW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTRtbSIgeT0iMjltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE3bW0iIHk9IjI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxOW1tIiB5PSIyOW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjNtbSIgeT0iMjltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI2bW0iIHk9IjI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyN21tIiB5PSIyOW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjhtbSIgeT0iMjltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI5bW0iIHk9IjI5bW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMG1tIiB5PSIyOW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzJtbSIgeT0iMjltbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjRtbSIgeT0iMzBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjZtbSIgeT0iMzBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjdtbSIgeT0iMzBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjhtbSIgeT0iMzBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEwbW0iIHk9IjMwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxM21tIiB5PSIzMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTdtbSIgeT0iMzBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE5bW0iIHk9IjMwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMG1tIiB5PSIzMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjNtbSIgeT0iMzBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI0bW0iIHk9IjMwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyOG1tIiB5PSIzMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjltbSIgeT0iMzBtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjMwbW0iIHk9IjMwbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIzMm1tIiB5PSIzMG1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iNG1tIiB5PSIzMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTBtbSIgeT0iMzFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEzbW0iIHk9IjMxbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxNG1tIiB5PSIzMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTVtbSIgeT0iMzFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjE3bW0iIHk9IjMxbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyMG1tIiB5PSIzMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjFtbSIgeT0iMzFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIybW0iIHk9IjMxbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyM21tIiB5PSIzMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjRtbSIgeT0iMzFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI1bW0iIHk9IjMxbW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyN21tIiB5PSIzMW1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzFtbSIgeT0iMzFtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjRtbSIgeT0iMzJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjVtbSIgeT0iMzJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjZtbSIgeT0iMzJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjdtbSIgeT0iMzJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjhtbSIgeT0iMzJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjltbSIgeT0iMzJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjEwbW0iIHk9IjMybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIxMm1tIiB5PSIzMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMTltbSIgeT0iMzJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjIybW0iIHk9IjMybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyNG1tIiB5PSIzMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMjVtbSIgeT0iMzJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PHN2ZzpyZWN0IHg9IjI3bW0iIHk9IjMybW0iIHdpZHRoPSIxbW0iIGhlaWdodD0iMW1tIiAvPjxzdmc6cmVjdCB4PSIyOG1tIiB5PSIzMm1tIiB3aWR0aD0iMW1tIiBoZWlnaHQ9IjFtbSIgLz48c3ZnOnJlY3QgeD0iMzFtbSIgeT0iMzJtbSIgd2lkdGg9IjFtbSIgaGVpZ2h0PSIxbW0iIC8+PC9zdmc+" alt="Static QR Code for tools.gameportal.win" title="https://tools.gameportal.win">
+        <div class="header-left">
+            <a href="https://tools.gameportal.win/" alt="Link to GamePortal Tools" title="https://tools.gameportal.win/" class="header-qr-link">
+                <svg class="header-qr" viewBox="0 0 37 37" xmlns="http://www.w3.org/2000/svg"><rect width="37" height="37" fill="#fff"/><path d="M4 4h7v7H4zm2 2v3h3V6zM13 4h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1zm3 0h3v3h-3zm24 0h7v7h-7zm2 2v3h3V6z" fill="#000"/></svg>
             </a>
             <a href="https://tools.gameportal.win" target="_blank" class="header-link-btn">Visit GamePortal</a>
-                <div class="header-titles">
-                <h1>Dungeon Activity / Turn Tracker</h1>
-                <p>Manage activities, durations, and time in 10-minute increments.</p>
+            <div class="header-titles">
+                <h1>Dungeon Turn Tracker</h1>
+                <p>Manage actions, durations, and time in 10-minute increments.</p>
             </div>
         </div>
         <div class="header-right">
@@ -339,7 +387,7 @@
                 </div>
 
                 <div class="panel">
-                    <h2>Party Actions <button class="secondary icon-btn" onclick="addCharacter()">+ Add</button></h2>
+                    <h2>Party Activities <button class="secondary icon-btn" onclick="addCharacter()">+ Add</button></h2>
                     <div id="party-list"></div>
                 </div>
 
@@ -348,10 +396,101 @@
                     <div id="tracker-list"></div>
                 </div>
 
-                <div class="panel full-width">
+                <div class="panel">
                     <h2>Action Log</h2>
                     <div class="log-container" id="action-log">
                         <em style="color:#777;">No history yet. Advance the turn to log actions.</em>
+                    </div>
+                </div>
+
+                <div class="panel no-print">
+                    <h2>Activity Reference</h2>
+                    <div class="log-container">
+                        <details>
+                            <summary>Casting a Spell</summary>
+                            <div class="rules-content">
+                                <em>Prerequisite: You pick a spell you can cast as a part of this Activity.</em><br><br>
+                                You spend the next 10 minutes casting a spell that has a casting time of 10 minutes, or a ritual spell that has a casting time of 11 minutes or less.
+                                <ul>
+                                    <li><strong>Longer Casting Times:</strong> You can do this Activity multiple turns in a row to cast spells with a longer duration.</li>
+                                    <li><strong>Rolling Initiative:</strong> If you roll initiative while engaged in this Activity, you can continue to cast the spell in combat by taking the Magic action on each of your turns to maintain Concentration on the spell being cast.</li>
+                                </ul>
+                            </div>
+                        </details>
+                        
+                        <details>
+                            <summary>Helping Out</summary>
+                            <div class="rules-content">
+                                <em>Prerequisite: You have a skill or tool proficiency relevant to the check being made.</em><br><br>
+                                Chose a creature within your reach. You grant that creature advantage on ability checks made during these 10 minutes.
+                            </div>
+                        </details>
+
+                        <details>
+                            <summary>Interacting</summary>
+                            <div class="rules-content">
+                                <em>Prerequisite: None</em><br><br>
+                                You interact with an object or a part of the environment for the next 10 minutes. This includes, but is not limited to:
+                                <ul>
+                                    <li>Reading notes, tablets, or instructions.</li>
+                                    <li>Moving rubble, or clearing a path.</li>
+                                    <li>Understanding an esoteric study, storage, or complicated device.</li>
+                                </ul>
+                                At the GM's discretion, these interactions may require one or more ability checks.
+                            </div>
+                        </details>
+
+                        <details>
+                            <summary>Keeping Watch</summary>
+                            <div class="rules-content">
+                                <em>Prerequisite: You're not blinded or deafened, and you can see your surroundings clearly.</em><br><br>
+                                You stand watch, preparing for any eventuality.
+                                <ul>
+                                    <li><strong>Alert the Party:</strong> Your party cannot be surprised by hostile creatures you can see.</li>
+                                    <li><strong>Prepared Motion:</strong> If combat starts as part of this Stretch, you can use a reaction before your first turn to take one of the following actions: Attack (one attack only), Dash, Dodge, Hide, or use the Magic action to cast a cantrip or use a magic item.</li>
+                                </ul>
+                            </div>
+                        </details>
+
+                        <details>
+                            <summary>Loot Everything</summary>
+                            <div class="rules-content">
+                                <em>Prerequisite: You can see and hear clearly.</em><br><br>
+                                You spend these 10 minutes to collect any adventuring gear and valuables that have already been discovered or weren't hidden.
+                            </div>
+                        </details>
+
+                        <details>
+                            <summary>Move Quietly</summary>
+                            <div class="rules-content">
+                                <em>Prerequisite: Proficiency in Stealth</em><br><br>
+                                For the next 10 minutes, creatures must succeed on a Wisdom (Perception) check to find you. The DC to notice you is 8 + your Dexterity modifier + your proficiency bonus. If you have expertise in Stealth, apply your proficiency bonus twice instead.
+                            </div>
+                        </details>
+
+                        <details>
+                            <summary>Search Area</summary>
+                            <div class="rules-content">
+                                <em>Prerequisite: You can see and hear clearly.</em><br><br>
+                                You spend 10 minutes searching a small room, or an area no larger than 50 feet in any dimension.
+                                <ul>
+                                    <li><strong>Ability Check:</strong> Make a Wisdom (Perception) or Intelligence (Investigation) check.</li>
+                                    <li><strong>Success:</strong> You find everything in this room hidden by a DC equal to or lower than the result of your check, such as traps, secret doors, or hidden loot.</li>
+                                </ul>
+                            </div>
+                        </details>
+
+                        <details>
+                            <summary>Take Your Time</summary>
+                            <div class="rules-content">
+                                <em>Prerequisite: None</em><br><br>
+                                You spend the next 10 minutes taking an Action. 
+                                <ul>
+                                    <li><strong>Taking 20:</strong> You get a 20 on the first D20 Test you make as part of that action. If that check would've had advantage, you may add +5 to the result.</li>
+                                    <li><strong>Replace Failure:</strong> When you take an Action to make an ability check and fail, you may, at the GMs discretion, take 10 minutes to do it as an Activity.</li>
+                                </ul>
+                            </div>
+                        </details>
                     </div>
                 </div>
 
@@ -399,16 +538,22 @@
 
     <script>
         // --- State Management ---
+        
+        function getDefaultCharacters() {
+            return [
+                { id: generateId(), name: "Fighter", action: "Keeping Watch" },
+                { id: generateId(), name: "Thief", action: "Search Area" },
+                { id: generateId(), name: "Wizard", action: "Interacting" },
+                { id: generateId(), name: "Cleric", action: "Casting a Spell" },
+                { id: generateId(), name: "Ranger", action: "Move Quietly" }
+            ];
+        }
+
         let state = {
             turn: 1,
-            characters: [
-                { id: generateId(), name: "Fighter", action: "Keeping Watch" },
-                { id: generateId(), name: "Thief", action: "Searching for Traps" },
-                { id: generateId(), name: "Wizard", action: "Mapping" },
-                { id: generateId(), name: "Cleric", action: "
-            ],
+            characters: getDefaultCharacters(),
             trackers: [
-                { id: generateId(), name: "Torch", duration: 6 }
+                { id: generateId(), name: "Torch", durationTurns: 6, displayUnit: "turns" }
             ],
             log: []
         };
@@ -429,31 +574,29 @@
 
         // --- Core Functions ---
         function advanceTurn() {
-            // 1. Save current state to log
+            // Save current state to log
             const logEntry = {
                 turn: state.turn,
                 time: formatTime(state.turn),
                 characters: JSON.parse(JSON.stringify(state.characters)),
                 trackers: JSON.parse(JSON.stringify(state.trackers))
             };
-            state.log.unshift(logEntry); // Add to beginning for reverse chronological order
+            state.log.unshift(logEntry);
 
-            // 2. Increment turn
+            // Increment turn
             state.turn++;
 
-            // 3. Decrement trackers
+            // Decrement trackers internally via turns
             state.trackers.forEach(t => {
-                if (t.duration > 0) t.duration--;
+                if (t.durationTurns > 0) t.durationTurns--;
             });
 
-            // Characters keep their actions so the user doesn't have to re-type "Mapping" every 10 mins.
             renderAll();
         }
 
         function resetState() {
             if(!confirm("Are you sure you want to reset everything?")) return;
-            state = { turn: 1, characters: [], trackers: [], log: [] };
-            addCharacter(); // Give them at least one row
+            state = { turn: 1, characters: getDefaultCharacters(), trackers: [], log: [] };
             renderAll();
         }
 
@@ -472,16 +615,30 @@
 
         // --- Tracker Management ---
         function addTracker() {
-            state.trackers.push({ id: generateId(), name: "", duration: 6 });
+            state.trackers.push({ id: generateId(), name: "", durationTurns: 6, displayUnit: "turns" });
             renderAll();
         }
         function removeTracker(index) {
             state.trackers.splice(index, 1);
             renderAll();
         }
-        function updateTracker(index, field, value) {
-            if (field === 'duration') value = parseInt(value, 10) || 0;
-            state.trackers[index][field] = value;
+        function updateTrackerName(index, value) {
+            state.trackers[index].name = value;
+        }
+        function updateTrackerValue(index, rawValue) {
+            let val = parseFloat(rawValue) || 0;
+            let unit = state.trackers[index].displayUnit;
+            
+            // Convert back to turns for internal storage
+            if (unit === 'minutes') val = Math.ceil(val / 10);
+            else if (unit === 'hours') val = Math.ceil(val * 6);
+            
+            state.trackers[index].durationTurns = Math.max(0, val);
+            renderAll();
+        }
+        function updateTrackerUnit(index, unit) {
+            state.trackers[index].displayUnit = unit;
+            renderAll();
         }
 
         // --- Rendering ---
@@ -498,7 +655,7 @@
                 row.className = 'item-row';
                 row.innerHTML = `
                     <input type="text" placeholder="Character Name" value="${char.name}" onchange="updateCharacter(${index}, 'name', this.value)">
-                    <input type="text" placeholder="Current Action..." value="${char.action}" onchange="updateCharacter(${index}, 'action', this.value)">
+                    <input type="text" list="activities-list" placeholder="Current Activity..." value="${char.action}" onchange="updateCharacter(${index}, 'action', this.value)">
                     <button class="danger icon-btn" onclick="removeCharacter(${index})" title="Remove">×</button>
                 `;
                 partyList.appendChild(row);
@@ -508,13 +665,23 @@
             const trackerList = document.getElementById('tracker-list');
             trackerList.innerHTML = '';
             state.trackers.forEach((tracker, index) => {
-                const isExpired = tracker.duration <= 0;
+                const isExpired = tracker.durationTurns <= 0;
+                
+                // Calculate display value based on unit selected
+                let displayVal = tracker.durationTurns;
+                if (tracker.displayUnit === 'minutes') displayVal = tracker.durationTurns * 10;
+                if (tracker.displayUnit === 'hours') displayVal = +(tracker.durationTurns / 6).toFixed(2);
+
                 const row = document.createElement('div');
                 row.className = `item-row ${isExpired ? 'tracker-expired' : ''}`;
                 row.innerHTML = `
-                    <input type="text" placeholder="Spell/Item Name" value="${tracker.name}" onchange="updateTracker(${index}, 'name', this.value)">
-                    <input type="number" class="short-input" min="0" placeholder="Turns" value="${tracker.duration}" onchange="updateTracker(${index}, 'duration', this.value)">
-                    <span style="font-size: 12px; color: #888; width: 40px;">Turns</span>
+                    <input type="text" placeholder="Spell/Item Name" value="${tracker.name}" onchange="updateTrackerName(${index}, this.value)">
+                    <input type="number" class="short-input" min="0" step="any" value="${displayVal}" onchange="updateTrackerValue(${index}, this.value)">
+                    <select onchange="updateTrackerUnit(${index}, this.value)">
+                        <option value="turns" ${tracker.displayUnit === 'turns' ? 'selected' : ''}>Turns</option>
+                        <option value="minutes" ${tracker.displayUnit === 'minutes' ? 'selected' : ''}>Minutes</option>
+                        <option value="hours" ${tracker.displayUnit === 'hours' ? 'selected' : ''}>Hours</option>
+                    </select>
                     <button class="danger icon-btn" onclick="removeTracker(${index})" title="Remove">×</button>
                 `;
                 trackerList.appendChild(row);
@@ -529,10 +696,9 @@
                 state.log.forEach(entry => {
                     let html = `<div class="log-entry">
                         <h4>Turn ${entry.turn} (${entry.time})</h4>
-                        <div style="display: flex; gap: 20px;">
-                            <div style="flex:1;">
-                                <strong>Party Actions:</strong>
-                                <ul>`;
+                        <div>
+                            <strong>Party Activities:</strong>
+                            <ul style="margin-bottom: 10px;">`;
                     
                     entry.characters.forEach(c => {
                         const name = c.name || 'Unknown';
@@ -540,19 +706,25 @@
                         html += `<li><b>${name}:</b> ${act}</li>`;
                     });
 
-                    html += `</ul></div><div style="flex:1;">`;
+                    html += `</ul></div>`;
 
-                    if(entry.trackers.length > 0) {
-                        html += `<strong>Active Durations:</strong><ul>`;
+                    if(entry.trackers && entry.trackers.length > 0) {
+                        html += `<div><strong>Active Durations:</strong><ul>`;
                         entry.trackers.forEach(t => {
                             const tName = t.name || 'Unnamed';
-                            const stateTxt = t.duration > 0 ? `${t.duration} turns left` : 'Expired';
+                            let stateTxt = 'Expired';
+                            if (t.durationTurns > 0) {
+                                // Re-calculate text based on the unit they were using at the time
+                                if (t.displayUnit === 'minutes') stateTxt = `${t.durationTurns * 10} minutes left`;
+                                else if (t.displayUnit === 'hours') stateTxt = `${+(t.durationTurns / 6).toFixed(2)} hours left`;
+                                else stateTxt = `${t.durationTurns} turns left`;
+                            }
                             html += `<li><b>${tName}:</b> ${stateTxt}</li>`;
                         });
-                        html += `</ul>`;
+                        html += `</ul></div>`;
                     }
                     
-                    html += `</div></div></div>`;
+                    html += `</div>`;
                     logContainer.innerHTML += html;
                 });
             }
@@ -577,6 +749,34 @@
                 try {
                     const loadedState = JSON.parse(event.target.result);
                     if(loadedState.turn !== undefined && loadedState.characters) {
+                        // Data migration map for old saves (pre unit selection)
+                        if(loadedState.trackers) {
+                            loadedState.trackers = loadedState.trackers.map(t => {
+                                if (t.duration !== undefined) {
+                                    t.durationTurns = t.duration;
+                                    delete t.duration;
+                                    t.displayUnit = "turns";
+                                }
+                                return t;
+                            });
+                        }
+                        // Migrate log
+                        if(loadedState.log) {
+                             loadedState.log = loadedState.log.map(l => {
+                                if(l.trackers) {
+                                     l.trackers = l.trackers.map(t => {
+                                        if (t.duration !== undefined) {
+                                            t.durationTurns = t.duration;
+                                            delete t.duration;
+                                            t.displayUnit = "turns";
+                                        }
+                                        return t;
+                                     });
+                                }
+                                return l;
+                             });
+                        }
+
                         state = loadedState;
                         renderAll();
                     } else {
@@ -600,13 +800,13 @@
                 md += `*No past turns logged yet.*\n`;
             }
 
-            // Export history in chronological order (reverse the log array temporarily)
+            // Export history in chronological order
             const chronologicalLog = [...state.log].reverse();
 
             chronologicalLog.forEach(entry => {
                 md += `### Turn ${entry.turn} (${entry.time})\n\n`;
                 
-                md += `**Party Actions:**\n`;
+                md += `**Party Activities:**\n`;
                 entry.characters.forEach(c => {
                     const name = c.name || 'Unknown';
                     const act = c.action || 'Idle';
@@ -614,11 +814,16 @@
                 });
                 md += `\n`;
 
-                if(entry.trackers.length > 0) {
+                if(entry.trackers && entry.trackers.length > 0) {
                     md += `**Active Effects:**\n`;
                     entry.trackers.forEach(t => {
                         const tName = t.name || 'Unnamed';
-                        const stateTxt = t.duration > 0 ? `${t.duration} turns left` : 'Expired';
+                        let stateTxt = 'Expired';
+                        if (t.durationTurns > 0) {
+                            if (t.displayUnit === 'minutes') stateTxt = `${t.durationTurns * 10} minutes left`;
+                            else if (t.displayUnit === 'hours') stateTxt = `${+(t.durationTurns / 6).toFixed(2)} hours left`;
+                            else stateTxt = `${t.durationTurns} turns left`;
+                        }
                         md += `- **${tName}:** ${stateTxt}\n`;
                     });
                     md += `\n`;
